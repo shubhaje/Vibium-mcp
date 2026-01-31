@@ -1,0 +1,6 @@
+vibium
+selenium
+python-dotenv
+pytest
+requests==2.31.0
+playwright>=1.40.0
