@@ -30,9 +30,11 @@ async def main():
     
     # Example test prompts
     example_prompts = [
-        "Test Google search: Navigate to google.com, search for 'Python programming', and verify results appear",
-        "Test Google homepage: Open google.com and verify the search box is present",
-        "Test Wikipedia: Navigate to wikipedia.org, click English, search for 'AI', verify article loads"
+        "Test Google search: Navigate to https://rahulshettyacademy.com/AutomationPractice/, Select Radio 1 from Radio Button example, and Type to select country India from dropdown",
+        "Click on OpenWindow button  from switch window exampe , verify  https://www.qaclickacademy.com/ window appres ",
+        "Close the first tab from switch window example and verify the second tab with text 'QA Click Academy | Selenium,Jmeter,SoapUI,Appium,Database testing,QA Training Academy' is present",
+        "In the Alerts example, click on 'Click me to see alert' button and accept the alert. Verify that the alert was accepted successfully.",
+        "In the Mouse Hover example, hover over the 'Mouse Hover' button and click on the 'Top' option from the displayed menu. Verify that the action was successful."
     ]
     
     # Initialize orchestrator
