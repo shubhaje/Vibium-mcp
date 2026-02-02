@@ -267,12 +267,45 @@ class VibiumExecutorAgent:
             
             await asyncio.sleep(2)
             
+            # Determine actual result (prefer page URL or title when available)
+            actual = None
+            if hasattr(self.page, 'url'):
+                actual = getattr(self.page, 'url')
+            elif hasattr(self.page, 'current_url'):
+                actual = getattr(self.page, 'current_url')
+            else:
+                actual = url
+
+            # If planner provided an expected_result, evaluate it briefly
+            success = True
+            message = f"Navigated to {url}"
+            if step.expected_result:
+                # If expected_result looks like a URL, compare URL, otherwise check page content
+                try:
+                    if step.expected_result.startswith('http'):
+                        success = step.expected_result.rstrip('/') == (actual or '').rstrip('/')
+                        if not success:
+                            message = f"Navigated to {url} (expected {step.expected_result}, got {actual})"
+                    else:
+                        page_text = None
+                        if hasattr(self.page, 'content'):
+                            page_text = await self.page.content()
+                        elif hasattr(self.page, 'evaluate'):
+                            page_text = await self.page.evaluate('document.body.innerText')
+
+                        if page_text and step.expected_result.lower() not in page_text.lower():
+                            success = False
+                            message = f"Expected content '{step.expected_result}' not found after navigation"
+                except Exception:
+                    # Don't fail navigation if post-check errors; report as non-critical
+                    success = False
+
             return ExecutionResult(
                 step_number=step.step_number,
                 action=step.action,
-                success=True,
-                message=f"Navigated to {url}",
-                actual_result=getattr(self.page, 'url', url)
+                success=success,
+                message=message,
+                actual_result=actual
             )
         except Exception as e:
             return ExecutionResult(
@@ -328,7 +361,55 @@ class VibiumExecutorAgent:
                 raise Exception(f"Element has no click method")
             
             await asyncio.sleep(1)
-            
+
+            # Post-click validation using expected_result if provided
+            if step.expected_result:
+                try:
+                    # Try treating expected_result as a selector first
+                    try:
+                        found = await self._find_element(step.expected_result)
+                    except Exception:
+                        found = None
+
+                    if found:
+                        return ExecutionResult(
+                            step_number=step.step_number,
+                            action=step.action,
+                            success=True,
+                            message=f"Clicked element: {step.target}; expected element present: {step.expected_result}",
+                            actual_result=str(found)
+                        )
+
+                    # Fallback: check page text for expected_result
+                    page_text = None
+                    if hasattr(self.page, 'content'):
+                        page_text = await self.page.content()
+                    elif hasattr(self.page, 'evaluate'):
+                        page_text = await self.page.evaluate('document.body.innerText')
+
+                    if page_text and step.expected_result.lower() in page_text.lower():
+                        return ExecutionResult(
+                            step_number=step.step_number,
+                            action=step.action,
+                            success=True,
+                            message=f"Clicked element: {step.target}; expected text found",
+                            actual_result=step.expected_result
+                        )
+
+                    return ExecutionResult(
+                        step_number=step.step_number,
+                        action=step.action,
+                        success=False,
+                        message=f"Clicked element: {step.target} but expected_result not satisfied: {step.expected_result}"
+                    )
+                except Exception as e:
+                    return ExecutionResult(
+                        step_number=step.step_number,
+                        action=step.action,
+                        success=False,
+                        message=f"Post-click verification failed: {str(e)}"
+                    )
+
             return ExecutionResult(
                 step_number=step.step_number,
                 action=step.action,
@@ -378,6 +459,54 @@ class VibiumExecutorAgent:
             
             await asyncio.sleep(0.5)
             
+            # Post-type validation if expected_result provided
+            if step.expected_result:
+                try:
+                    # Check for expected element or text
+                    found = None
+                    try:
+                        found = await self._find_element(step.expected_result)
+                    except Exception:
+                        found = None
+
+                    if found:
+                        return ExecutionResult(
+                            step_number=step.step_number,
+                            action=step.action,
+                            success=True,
+                            message=f"Typed '{step.value}' into {step.target}; expected element present: {step.expected_result}",
+                            actual_result=str(found)
+                        )
+
+                    page_text = None
+                    if hasattr(self.page, 'content'):
+                        page_text = await self.page.content()
+                    elif hasattr(self.page, 'evaluate'):
+                        page_text = await self.page.evaluate('document.body.innerText')
+
+                    if page_text and step.expected_result.lower() in page_text.lower():
+                        return ExecutionResult(
+                            step_number=step.step_number,
+                            action=step.action,
+                            success=True,
+                            message=f"Typed '{step.value}' into {step.target}; expected text found",
+                            actual_result=step.expected_result
+                        )
+
+                    return ExecutionResult(
+                        step_number=step.step_number,
+                        action=step.action,
+                        success=False,
+                        message=f"Typed '{step.value}' but expected_result not satisfied: {step.expected_result}"
+                    )
+                except Exception as e:
+                    return ExecutionResult(
+                        step_number=step.step_number,
+                        action=step.action,
+                        success=False,
+                        message=f"Post-type verification failed: {str(e)}"
+                    )
+
             return ExecutionResult(
                 step_number=step.step_number,
                 action=step.action,
@@ -396,8 +525,11 @@ class VibiumExecutorAgent:
         """Verify element exists or has expected content"""
         try:
             element = await self._find_element(step.target)
-            
-            if step.value:
+
+            # Prefer planner's expected_result for verification when provided
+            comparator = step.expected_result or step.value
+
+            if comparator:
                 # Verify element contains expected text
                 if hasattr(element, 'text_content'):
                     element_text = await element.text_content()
@@ -405,20 +537,22 @@ class VibiumExecutorAgent:
                     element_text = await element.inner_text()
                 else:
                     element_text = str(element)
-                
-                success = step.value.lower() in element_text.lower()
-                message = f"Verified '{step.value}' in element" if success else f"Expected '{step.value}' not found in '{element_text}'"
+
+                success = comparator.lower() in element_text.lower()
+                message = f"Verified '{comparator}' in element" if success else f"Expected '{comparator}' not found in '{element_text}'"
+                actual = element_text
             else:
                 # Just verify element exists
                 success = True
                 message = f"Verified element exists: {step.target}"
-            
+                actual = None
+
             return ExecutionResult(
                 step_number=step.step_number,
                 action=step.action,
                 success=success,
                 message=message,
-                actual_result=element_text if step.value else None
+                actual_result=actual
             )
         except Exception as e:
             return ExecutionResult(
