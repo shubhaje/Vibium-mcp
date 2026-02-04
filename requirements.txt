@@ -4,3 +4,5 @@ python-dotenv
 pytest
 requests==2.31.0
 playwright>=1.40.0
+jsonschema>=4.18.0
+ruff>=0.12.0
