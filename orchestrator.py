@@ -4,7 +4,7 @@ Coordinates Planner, Executor, and Validator agents
 """
 
 from typing import Dict, Any
-from models import TestPlan, ExecutionResult
+from models import TestPlan
 from ollama_client import OllamaClient
 from planner_agent import PlannerAgent
 from executor_agent import VibiumExecutorAgent

@@ -74,8 +74,8 @@ class VibiumExecutorAgent:
             print("✓ Vibium browser initialized")
 
         except ImportError as ie:
-            print(f"ERROR: Vibium not installed or incompatible. Install with: pip install vibium")
-            print(f"[DEBUG] Import error: {ie}")
+            print("ERROR: Vibium not installed or incompatible. Install with: pip install vibium")
+            print("[DEBUG] Import error:", ie)
             raise
         except Exception as e:
             print(f"ERROR initializing Vibium: {e}")
@@ -193,7 +193,6 @@ class VibiumExecutorAgent:
         """Close the browser"""
         if self.browser:
             try:
-                closed = False
                 for name in ('close', 'stop', 'shutdown'):
                     method = getattr(self.browser, name, None)
                     if method:
@@ -201,7 +200,6 @@ class VibiumExecutorAgent:
                             await method()
                         else:
                             method()
-                        closed = True
                         break
 
                 self.browser = None
@@ -358,7 +356,7 @@ class VibiumExecutorAgent:
                 else:
                     click_method()
             else:
-                raise Exception(f"Element has no click method")
+                raise Exception("Element has no click method")
             
             await asyncio.sleep(1)
 
