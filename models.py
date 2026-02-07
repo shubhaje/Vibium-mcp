@@ -10,6 +10,7 @@ from typing import List, Optional
 @dataclass
 class TestStep:
     """Represents a single test step"""
+    __test__ = False
     action: str
     target: str
     value: Optional[str] = None
@@ -20,6 +21,7 @@ class TestStep:
 @dataclass
 class TestPlan:
     """Represents a complete test plan"""
+    __test__ = False
     objective: str
     steps: List[TestStep]
     success_criteria: List[str]
@@ -28,6 +30,7 @@ class TestPlan:
 @dataclass
 class ExecutionResult:
     """Results from executing a test step"""
+    __test__ = False
     step_number: int
     action: str
     success: bool
